@@ -55,16 +55,14 @@ int main(int argc, char** argv){
 		width_,
 		height_
 		));
-	float* d_input_data_, *input_data_;
+	float* input_data_;
 	float count_input =  n_ * width_ * height_ * channel_;
-	CUDA_CHECK(cudaMalloc(&d_input_data_, 
+	CUDA_CHECK(cudaMallocManaged(&input_data_, 
 		sizeof(float) * count_input));
-	input_data_ = (float*)malloc(sizeof(float)*count_input);
 
 	for (int i=0;i<count_input; i++){
-		input_data_[i] = i;
+		input_data_[i] = 1;
 	}
-	CUDA_CHECK(cudaMemcpy(d_input_data_, input_data_, sizeof(float)*count_input, cudaMemcpyHostToDevice));
 	LOG(DEBUG)<<"input tensor intialized";
 
 	/*for (int i=0;i<count_input; i++){
@@ -83,18 +81,16 @@ int main(int argc, char** argv){
 		h_,
 		w_));
 
-	float* filter_data_, *d_filter_data_;
+	float* filter_data_;
 
 	//allocate filter data
 	float count_filter = k_ * c_ * h_ * w_;
 
-	CUDA_CHECK(cudaMalloc(&d_filter_data_, 
+	CUDA_CHECK(cudaMallocManaged(&filter_data_, 
 		sizeof(float) * count_filter));
-	filter_data_ = (float*)malloc(sizeof(float) * count_filter);
 	for (int i=0;i<count_filter; i++){
 		filter_data_[i] = 1.;
 	}
-	CUDA_CHECK(cudaMemcpy(d_filter_data_, filter_data_, sizeof(float)*count_filter, cudaMemcpyHostToDevice));
 	LOG(DEBUG)<<"filter descriptor intialized";
 
 	// Create conv descriptor
@@ -134,29 +130,26 @@ int main(int argc, char** argv){
 		out_w_
 		));
 
-	float* out_data_, *d_out_data_;
-	CUDA_CHECK(cudaMalloc(&d_out_data_, 
+	float* out_data_;
+	CUDA_CHECK(cudaMallocManaged(&out_data_, 
 		sizeof(float) * count_out));
-	out_data_ = (float*)malloc(sizeof(float)*count_out);
 	for (int i=0;i<count_out; i++){
 		out_data_[i] = 0.;
 	}
-	CUDA_CHECK(cudaMemcpy(d_out_data_, out_data_, sizeof(float)*count_out, cudaMemcpyHostToDevice));
 
 	LOG(DEBUG)<<"Output tensor initialized";
 
 	//Launch convolution
 	CUDNN_CHECK(cudnnConvolutionForward(dnn_handle_,
-		input_tensor_, reinterpret_cast<const void*>(d_input_data_),
-		filter_desc_, reinterpret_cast<const void*>(d_filter_data_),
+		input_tensor_, reinterpret_cast<const void*>(input_data_),
+		filter_desc_, reinterpret_cast<const void*>(filter_data_),
 		conv_desc_,
-		out_tensor_, reinterpret_cast<void*>(d_out_data_),
+		out_tensor_, reinterpret_cast<void*>(out_data_),
 		CUDNN_RESULT_ACCUMULATE));
 
 	LOG(DEBUG)<<"Convolution Done";
 
 	cudaError_t err = cudaDeviceSynchronize();
-	cudaMemcpy(out_data_, d_out_data_, sizeof(float)*count_out, cudaMemcpyDeviceToHost);
 	LOG(INFO)<<"result:";
 	for (int i=0;i<count_out; i++){
 		LOG(INFO)<<out_data_[i];
